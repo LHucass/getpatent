@@ -13,8 +13,10 @@ from bs4 import BeautifulSoup
 from random import randint
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
+import pandas as pd
 
 urllib3.disable_warnings()
+
 
 def randomstring(length):
     strindex = "ABCDEFGHJKMNPQRSTWXYZabcdefhijkmnprstwxyz2345678"
@@ -23,6 +25,7 @@ def randomstring(length):
         retnstr = retnstr + strindex[randint(0,47)]
         i = i + 1
     return retnstr
+
 
 def get_encrypted_password(encrypted_key):
     aeskey_replaced = encrypted_key.replace("/(^\s+)|(\s+$)/g", "")
@@ -44,7 +47,8 @@ def get_encrypted_password(encrypted_key):
     password_post = password_post.decode("utf8")
     return password_post
 
-def login(key):
+
+def auth_login():
     headers = {
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
         "Accept-Encoding": "gzip, deflate, br, zstd",
@@ -96,10 +100,10 @@ def login(key):
     cookies
     authserver_login = session.post(url=authserver_url, headers=headers, cookies=cookies, data=studentdata,
                                     verify=False)
-    authserver_login_cookies = authserver_login.cookies
     r_response = authserver_login.headers
     acl_poly = r_response['Set-Cookie'].split()[0][9:-1]
     return acl_poly
+
 
 def get_patentcookies(acl_poly):
     #simulation of login process of vpn
@@ -115,11 +119,12 @@ def get_patentcookies(acl_poly):
         #    "Origin": 'https://10htbprol1htbprol10htbprol9prodhtbl8888-p.libdb.ucass.edu.cn',
         #    "Referer": 'https://10htbprol1htbprol10htbprol9prodhtbl8888-p.libdb.ucass.edu.cn',
         #    "Host": '10htbprol1htbprol10htbprol9prodhtbl8888-p.libdb.ucass.edu.cn',
-        "acl-poly": aclpoly,
+        "acl-poly": acl_poly,
     }
     r = requests.get(url=url_getcookies, headers=headers, cookies=cookies, verify=False)
     aclpoly_new = r.headers['Set-Cookie'].split()[0][9:-1]
     return aclpoly_new
+
 
 def get_patentlist(acl_poly, countrycode, patent_type, start_date, end_date):
     headers = {
@@ -128,18 +133,25 @@ def get_patentlist(acl_poly, countrycode, patent_type, start_date, end_date):
     }
 
     patent_url = 'https://10htbprol1htbprol10htbprol9prodhtbl8888-p.libdb.ucass.edu.cn/patentinformation/patentCon/combineSearch'
-    text = "page=1&pageSize=10000&submitApplication=" + contrycode + "&sourceFlag=&patentOwnType=" + patent_type + "&patentOwnFirstField=patent_own_first&patentOwnFirst=&patentOwnField=patent_own&patentOwn=&dateField=apply_date&startDate=" + str(
-        start_date) + "&endDate=&wipoField=wipoindustry_category_name&wipoIndustryCategoryName=&nationalField=national_industries_classification_code&nationalIndustriesClassificationName=&"
+    text = "page=1&pageSize=10000&submitApplication=" + countrycode + "&sourceFlag=&patentOwnType=" + patent_type + "&patentOwnFirstField=patent_own_first&patentOwnFirst=&patentOwnField=patent_own&patentOwn=&dateField=apply_date&startDate=" + str(
+        start_date) + "&" + str(end_date) + "=&wipoField=wipoindustry_category_name&wipoIndustryCategoryName=&nationalField=national_industries_classification_code&nationalIndustriesClassificationName=&"
     cookies = {
         'acl-poly': acl_poly,
         'userName': 'annoymous',
-        'userPwd': 'sky13567'
+        'userPwd': 'sky1foefoe3567'
     }
     patent = session.post(patent_url, data=text, cookies=cookies, headers=headers, verify=False)
     patent_list = patent.json()['data']['list']
-    return patentlist
+    return patent_list
+
 
 def patent_list_to_df(list):
     patent_list_df = pd.DataFrame.from_dict(list)
     return patent_list_df
 
+
+cookie = auth_login()
+patent_cookies = get_patentcookies(cookie)
+patentlist = get_patentlist(patent_cookies, "CN", "2024-01-10", "2024-04-12")
+patent_list_df = pd.DataFrame.from_dict(patentlist)
+patent_list_df.to_excel("patent.xlsx")#save the patent data
